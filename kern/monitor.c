@@ -49,7 +49,7 @@ int mon_kerninfo(int argc, char **argv, struct Trapframe *tf) {
             ROUNDUP(end - entry, 1024) / 1024);
     return 0;
 }
-/* 
+
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
     // Your code here.
     uint32_t now_ebp = read_ebp();
@@ -71,8 +71,8 @@ int mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
     }
 
     return 0;
-} */
-
+}
+/* 
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
@@ -99,7 +99,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	}
 	return 0;
 }
-
+ */
 /***** Kernel monitor command interpreter *****/
 
 #define WHITESPACE "\t\r\n "
