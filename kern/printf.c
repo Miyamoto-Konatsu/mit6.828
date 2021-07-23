@@ -10,7 +10,8 @@ static void
 putch(int ch, int *cnt)
 {
 	cputchar(ch);
-	*cnt++;
+	//*cnt++;这样写不能增加cnt，下面这样写才对
+	(*cnt)++;
 }
 
 int
