@@ -24,7 +24,8 @@ static struct Command commands[] = {
     {"help", "Display this list of commands", mon_help},
     {"kerninfo", "Display information about the kernel", mon_kerninfo},
     {"mon_traceback", "Display a listing of function call frames",
-     mon_backtrace}};
+     mon_backtrace},
+     {"exercise8_5","exercise8_5",exercise8_5}};
 
 /***** Implementations of basic kernel monitor commands *****/
 
@@ -49,7 +50,7 @@ int mon_kerninfo(int argc, char **argv, struct Trapframe *tf) {
             ROUNDUP(end - entry, 1024) / 1024);
     return 0;
 }
-
+int exercise8_5(int argc, char **argv, struct Trapframe *tf){ cprintf("x=%d y=%d\n", 3); return 0;}
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
     // Your code here.
     uint32_t now_ebp = read_ebp();
@@ -72,32 +73,33 @@ int mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
 
     return 0;
 }
-/* 
+/*
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
-	cprintf("Start backtrace\n");
-	uint32_t ebp = read_ebp();
-	struct Eipdebuginfo info;
-	while(ebp){
-		uint32_t *stack_frame = (uint32_t *)(ebp);
-		cprintf("ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
-				ebp,		 //makeebp
-				stack_frame[1], // eip*
-				stack_frame[2], //  arg1
-				stack_frame[3], // arg2
-				stack_frame[4],  //arg3
-				stack_frame[5],  //
-				stack_frame[6]); 
-		uint32_t eip = stack_frame[1];
-		debuginfo_eip(eip,&info);
-		cprintf("     %s:%d: %.*s+%d\n", info.eip_file, info.eip_line,
-				info.eip_fn_namelen, info.eip_fn_name, eip - info.eip_fn_addr);
-	
-		ebp = stack_frame[0];
-	}
-	return 0;
+        // Your code here.
+        cprintf("Start backtrace\n");
+        uint32_t ebp = read_ebp();
+        struct Eipdebuginfo info;
+        while(ebp){
+                uint32_t *stack_frame = (uint32_t *)(ebp);
+                cprintf("ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
+                                ebp,		 //makeebp
+                                stack_frame[1], // eip*
+                                stack_frame[2], //  arg1
+                                stack_frame[3], // arg2
+                                stack_frame[4],  //arg3
+                                stack_frame[5],  //
+                                stack_frame[6]);
+                uint32_t eip = stack_frame[1];
+                debuginfo_eip(eip,&info);
+                cprintf("     %s:%d: %.*s+%d\n", info.eip_file, info.eip_line,
+                                info.eip_fn_namelen, info.eip_fn_name, eip -
+info.eip_fn_addr);
+
+                ebp = stack_frame[0];
+        }
+        return 0;
 }
  */
 /***** Kernel monitor command interpreter *****/
