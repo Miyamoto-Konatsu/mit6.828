@@ -150,7 +150,6 @@ mem_init(void)
 	// Your code goes here:
 	pages =(struct PageInfo *) boot_alloc(sizeof(struct PageInfo) * npages);
 	memset(pages, 0, sizeof(struct PageInfo) * npages);
-	cprintf("address of pages :%x\n",pages);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -380,8 +379,6 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		physaddr_t pt_addr = page2pa(page_info);
 		pgdir[pdx] = (PTE_P |PTE_W | PTE_U| PTE_ADDR(pt_addr));
 		pde =  pgdir[pdx];
-		// return clear page table address
-		//return (pte_t*) KADDR(pt_addr);
 	}
 
 	//page table address
@@ -516,8 +513,8 @@ page_remove(pde_t *pgdir, void *va)
 	struct PageInfo *page_info = page_lookup(pgdir, va, &pte_p);
 	if(!page_info)
 		return;
-	*pte_p = 0; 
 	tlb_invalidate(pgdir,va);
+	*pte_p = 0; 
 	page_decref(page_info);
 }
 
