@@ -148,13 +148,8 @@ static int runcmd(char *buf, struct Trapframe *tf) {
 void monitor(struct Trapframe *tf) {
     char *buf;
 
-<<<<<<< HEAD
 	if (tf != NULL)
 		print_trapframe(tf);
-=======
-    cprintf("Welcome to the JOS kernel monitor!\n");
-    cprintf("Type 'help' for a list of commands.\n");
->>>>>>> lab2
 
     while (1) {
         buf = readline("K> ");
