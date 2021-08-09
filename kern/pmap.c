@@ -97,7 +97,6 @@ boot_alloc(uint32_t n)
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
 	}
-	cprintf("nextfree  %x\n",nextfree);
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
@@ -105,7 +104,6 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here.
 	result = nextfree;
 	nextfree = ROUNDUP(nextfree + n, PGSIZE);
-	cprintf("result  %x\n",result);
 	return result;
 	// return NULL;
 }
@@ -133,7 +131,6 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
-	cprintf("kern_pgdir  %x\n",kern_pgdir);
 	memset(kern_pgdir, 0, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
@@ -143,7 +140,6 @@ mem_init(void)
 	// following line.)
 
 	// Permissions: kernel R, user R
-	cprintf("kern_pgdir  %x\n",kern_pgdir);
 	kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
 
 	//////////////////////////////////////////////////////////////////////
@@ -433,7 +429,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 
 	//正确写法
 	for(size_t count = 0; count <  size; count += PGSIZE, va += PGSIZE, pa += PGSIZE) {
-		pte_t* pte = pgdir_walk(pgdir,(void *)va,1);
+		pte_t* pte = pgdir_walk(pgdir, (void *)va, 1);
 		if(!pte) 
 			return;
 		*pte= PTE_ADDR(pa) | perm | PTE_P;
@@ -574,7 +570,24 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	if(len == 0) return 0;
 
+	uintptr_t t_va = (uintptr_t)(va);
+	if(t_va +len >= ULIM) {
+		user_mem_check_addr = t_va > ULIM ? t_va : ULIM;
+		return -E_FAULT;
+	}
+	perm |= PTE_P;
+	uintptr_t va_end = ROUNDUP(t_va+len,PGSIZE);
+	uintptr_t va_start = ROUNDDOWN(t_va, PGSIZE);
+
+	for(; va_start < va_end; va_start += PGSIZE) {
+		pte_t* pte = pgdir_walk(env->env_pgdir, (void*)va_start, 0);
+		if(!pte || (*pte & perm) != perm) {
+			user_mem_check_addr = va_start == ROUNDDOWN(t_va, PGSIZE) ? t_va : va_start;
+			return -E_FAULT;
+		} 
+	}
 	return 0;
 }
 

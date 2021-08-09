@@ -147,7 +147,7 @@ static int runcmd(char *buf, struct Trapframe *tf) {
 
 void monitor(struct Trapframe *tf) {
     char *buf;
-
+    cprintf("Welcome to the JOS kernel monitor!\n");
 	if (tf != NULL)
 		print_trapframe(tf);
 
