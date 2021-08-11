@@ -268,7 +268,9 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	for(int i = 0; i < NCPU; ++i)
+		boot_map_region(kern_pgdir,KSTACKTOP - i * (KSTKGAP + KSTKSIZE) - KSTKSIZE, KSTKSIZE, \
+		(physaddr_t)PADDR(percpu_kstacks[i]),PTE_W);
 }
 
 // --------------------------------------------------------------
@@ -309,13 +311,21 @@ page_init(void)
 	// free pages!
 	size_t i;
 	char * next_free = boot_alloc(0);
-	for (i = 1; i < npages; i++) {
+	int mpentry_page_pos = pa2page((physaddr_t)MPENTRY_PADDR) - pages;
+	for (i = 1; i < mpentry_page_pos; i++) {
 		pages[i].pp_ref = 0;
-		if((i >= 1 && i < npages_basemem) || page2pa(&pages[i]) >= PADDR(next_free)){
-			pages[i].pp_link = page_free_list;
-			page_free_list = &pages[i];
-		}
-
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
+	}
+	for (i = mpentry_page_pos + 1; i < npages_basemem; i++) {
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
+	}
+	for (i = pa2page(PADDR(next_free)) - pages; i < npages; i++) {
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];
 	}
 }
 
@@ -613,7 +623,17 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+
+	uintptr_t result = base;
+	base = ROUNDUP(base + size, PGSIZE);
+	physaddr_t pa_start = ROUNDDOWN(pa, PGSIZE);
+	physaddr_t pa_end = ROUNDUP(pa + size, PGSIZE);
+	size = pa_end - pa_start;
+	if(base > MMIOLIM)
+		panic("There is no enough memory for mmio_map_region()!\n");
+	boot_map_region(kern_pgdir, result, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+	return (void*)result;
+	//panic("mmio_map_region not implemented");
 }
 
 static uintptr_t user_mem_check_addr;
