@@ -93,7 +93,6 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 		*env_store = 0;
 		return -E_BAD_ENV;
 	}
-
 	// Check that the calling environment has legitimate permission
 	// to manipulate the specified environment.
 	// If checkperm is set, the specified environment
@@ -210,6 +209,7 @@ env_setup_vm(struct Env *e)
 int
 env_alloc(struct Env **newenv_store, envid_t parent_id)
 {
+
 	int32_t generation;
 	int r;
 	struct Env *e;
@@ -256,7 +256,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
-
+	e->env_tf.tf_eflags = FL_IF;
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
 
@@ -537,6 +537,7 @@ env_run(struct Env *e)
 	} 
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
+
 	unlock_kernel();
 	lcr3(PADDR(curenv->env_pgdir));
 	

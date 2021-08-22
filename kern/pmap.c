@@ -133,6 +133,7 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
+	cprintf("%x\n",(kern_pgdir));
 	memset(kern_pgdir, 0, PGSIZE);
 
 	//////////////////////////////////////////////////////////////////////
@@ -438,10 +439,10 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			return NULL;
 		++page_info->pp_ref;
 		physaddr_t pt_addr = page2pa(page_info);
-		pgdir[pdx] = (PTE_P |PTE_W | PTE_U| PTE_ADDR(pt_addr));
+		pgdir[pdx] = (PTE_P | PTE_W | PTE_U | PTE_ADDR(pt_addr));
 		pde =  pgdir[pdx];
 	}
-
+       
 	//page table address
 	pte_t* pt_addr = (pte_t*)(KADDR(PTE_ADDR(pde)));
 	return pt_addr + ptx;
@@ -477,7 +478,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 		pte_t* pte = pgdir_walk(pgdir, (void *)va, 1);
 		if(!pte) 
 			return;
-		*pte= PTE_ADDR(pa) | perm | PTE_P;
+		*pte = PTE_ADDR(pa) | perm | PTE_P;
 	}
 }
 //
@@ -691,7 +692,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 void
 user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
 {
-	if (user_mem_check(env, va, len, perm | PTE_U) < 0) {
+	if (user_mem_check(env, va, len, perm | PTE_U | PTE_P) < 0) {
 		cprintf("[%08x] user_mem_check assertion failure for "
 			"va %08x\n", env->env_id, user_mem_check_addr);
 		env_destroy(env);	// may not return

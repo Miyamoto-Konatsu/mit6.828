@@ -91,6 +91,8 @@ trap_init(void)
 	void simd_handler();
 	void syscall_handler();
 	void segment_handler();
+
+	void timer_handler();
 	SETGATE(idt[T_DIVIDE],0,GD_KT,divide_handler,0);
 	SETGATE(idt[T_DEBUG],0,GD_KT,debug_handler,0);
 	SETGATE(idt[T_NMI],0, GD_KT,nmi_handler,0);
@@ -109,6 +111,25 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN],0,GD_KT,aligment_handler,0);
 	SETGATE(idt[T_MCHK],0,GD_KT,machine_handler,0);
 	SETGATE(idt[T_SIMDERR],0,GD_KT,simd_handler,0);
+/*
+#define IRQ_TIMER        0
+#define IRQ_KBD          1
+#define IRQ_SERIAL       4
+#define IRQ_SPURIOUS     7
+#define IRQ_IDE         14
+#define IRQ_ERROR       19*/
+void irq_timer_handler();
+void irq_kbd_handler();
+void irq_serial_handler();
+void irq_spurious_handler();
+void irq_ide_handler();
+void irq_error_handler();
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER],0,GD_KT,irq_timer_handler,3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD],0,GD_KT,irq_kbd_handler,3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL],0,GD_KT,irq_serial_handler,3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS],0,GD_KT,irq_spurious_handler,3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_IDE],0,GD_KT,irq_ide_handler,3);
+	SETGATE(idt[IRQ_OFFSET + IRQ_ERROR],0,GD_KT,irq_error_handler,3);
 	
 	SETGATE(idt[T_SYSCALL],0,GD_KT,syscall_handler,3);
 	SETGATE(idt[T_DEFAULT],0,GD_KT,syscall_handler,0);
@@ -162,28 +183,7 @@ trap_init_percpu(void)
 	// bottom three bits are special; we leave them 0)
 	ltr(GD_TSS0 + (cpunum() << 3));
 	lidt(&idt_pd);
-	/*for(int i = 0; i < NCPU; ++i) {
-		cpus[i].cpu_ts.ts_esp0 = percpu_kstacks[i];
-		cpus[i].cpu_ts.ts_ss0 = GD_KD;
-		cpus[i].cpu_ts.ts_iomb = sizeof(struct Taskstate);
-		gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A, (uint32_t) (&cpus[i].cpu_ts),
-		sizeof(struct Taskstate) - 1, 0);
-		gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
-	}
 	
-
-	// Initialize the TSS slot of the gdt.
-	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id] = SEG16(STS_T32A, (uint32_t) (&ts),
-					sizeof(struct Taskstate) - 1, 0);
-	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s = 0; 
-
-	// Load the TSS selector (like other segment selectors, the
-	// bottom three bits are special; we leave them 0)
-	//ltr(GD_TSS0 + 0x8 * thiscpu->cpu_id);
-	//gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s =0;
-	ltr(GD_TSS0 );
-	// Load the IDT
-	lidt(&idt_pd);*/
 }
 
 void
@@ -263,7 +263,11 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -273,7 +277,6 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 }
-
 void
 trap(struct Trapframe *tf)
 {
@@ -381,8 +384,32 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-
+    // user_mem_assert();
+	if(curenv->env_pgfault_upcall == NULL)
+		goto destroy;
+	user_mem_assert(curenv, curenv->env_pgfault_upcall, 1, PTE_U);
+	user_mem_assert(curenv, (void*)UXSTACKTOP - 1, 1, PTE_W);
+	if(fault_va >= USTACKTOP && fault_va < UXSTACKTOP - PGSIZE)
+		goto destroy;
+	uint32_t esp = UXSTACKTOP;
+	if(tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp < UXSTACKTOP)
+		esp = tf->tf_esp;
+	asm volatile("movl %0 , %%esp\n":: "a" (esp));
+	if(tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp < UXSTACKTOP)
+	asm volatile("pushl %0\n":: "a" (0));
+	asm volatile("pushl %0\n":: "a" (tf->tf_esp));
+	asm volatile("pushl %0\n":: "a" (tf->tf_eflags));
+	asm volatile("pushl %0\n":: "a" (tf->tf_eip));
+	for(uintptr_t *addr = &tf->tf_regs.reg_eax; addr >= &tf->tf_regs.reg_edi;--addr) {
+		asm volatile("pushl %0\n":: "a" (*addr));
+	}
+	asm volatile("pushl %0\n":: "a" (tf->tf_err));
+	asm volatile("pushl %0\n":: "a" (fault_va));
+	tf->tf_eip =(uintptr_t ) curenv->env_pgfault_upcall;
+	tf->tf_esp = read_esp();
+	env_run(curenv);
 	// Destroy the environment that caused the fault.
+	destroy:
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
 	print_trapframe(tf);
