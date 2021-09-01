@@ -70,18 +70,25 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	bool writable = false, present = false,cow = false;
+	bool writable = false, present = false, cow = false ,shared = false;
 
 	int perm = uvpt[pn] & (PGSIZE - 1);
 	writable = perm & ~PTE_W;
 	present = perm & ~PTE_P;
 	cow = perm & ~PTE_COW;
+	shared = perm & ~PTE_SHARE;
 	if(!present)
 		return 0;
 	if(!writable && !cow) {
 		if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), PTE_U|PTE_P)) < 0)
-		return r;
+			return r;
+		return 0;
 	}
+	/* if(shared) {
+		if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), PTE_U|PTE_P|PTE_SHARE)) < 0)
+			return r;
+		return 0;
+	} */
 	perm = PTE_P |PTE_U|PTE_COW;
 	
 	if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), perm)) < 0)

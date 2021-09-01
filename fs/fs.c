@@ -31,12 +31,13 @@ block_is_free(uint32_t blockno)
 {
 	if (super == 0 || blockno >= super->s_nblocks)
 		return 0;
+	//位为0表示使用，位为1表示空闲，4个字节能够表示32块的使用情况
 	if (bitmap[blockno / 32] & (1 << (blockno % 32)))
 		return 1;
 	return 0;
 }
 
-// Mark a block free in the bitmap
+// Mark a block free in the bitmap, 
 void
 free_block(uint32_t blockno)
 {
@@ -62,7 +63,20 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	int blockno;
+	for(int i = 1; i < super->s_nblocks; ++i) {
+		if(bitmap[i] == 0)
+			continue;
+		for(int j = 0; j < 32; ++j) {
+			if(bitmap[i] & (1 << j)) {
+				bitmap[i] &= 0xffffffff ^ (1 << j);
+				flush_block(&bitmap[i]);
+				blockno = i * 32 + j;
+				return blockno;
+			}
+		}
+	}
+	// panic("alloc_block not implemented");
 	return -E_NO_DISK;
 }
 
@@ -135,7 +149,26 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
        // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+	if(filebno >= NDIRECT + NINDIRECT)
+		return -E_INVAL;
+
+	if(filebno >= NDIRECT) {
+		filebno -= NDIRECT;
+		if(f->f_indirect == 0) {
+			if(alloc == false)
+				return -E_NOT_FOUND;
+			int block_number = alloc_block();
+			if(block_number < 0)
+				return -E_NO_DISK;
+			f->f_indirect = block_number;
+			memset(diskaddr(f->f_indirect), 0, BLKSIZE);
+		}
+		*ppdiskbno = (uint32_t *)(diskaddr(f->f_indirect)) + filebno;
+		return 0;	
+	}
+	*ppdiskbno = &(f->f_direct[filebno]);
+	return 0;	
+    //panic("file_block_walk not implemented");
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -149,8 +182,22 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
-       // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+    // LAB 5: Your code here.
+	int r;
+	uint32_t *pdiskbno;
+	if((r = file_block_walk(f, filebno,  &pdiskbno, 1)) < 0)
+		return r;
+	int diskbno;
+	if(*pdiskbno == 0){
+		if((diskbno = alloc_block()) < 0)
+			return diskbno;
+		*pdiskbno = (uint32_t)diskbno;
+	} else {
+		diskbno =(int) *pdiskbno;
+	}
+	*blk = (char *)(diskbno * BLKSIZE + DISKMAP);
+	return 0;
+    // panic("file_get_block not implemented");
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -166,8 +213,7 @@ dir_lookup(struct File *dir, const char *name, struct File **file)
 	struct File *f;
 
 	// Search dir for name.
-	// We maintain the invariant that the size of a directory-file
-	// is always a multiple of the file system's block size.
+	
 	assert((dir->f_size % BLKSIZE) == 0);
 	nblock = dir->f_size / BLKSIZE;
 	for (i = 0; i < nblock; i++) {
