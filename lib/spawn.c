@@ -302,7 +302,25 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
-	
+	extern unsigned char end[];
+	int r;
+	for(unsigned i = 0; i < PGNUM(ROUNDUP(0xeebfd000, PGSIZE));){
+		if(uvpd[ i >> 10] & PTE_P ) {
+				bool writable = false, present = false ,shared = false;
+				int perm = uvpt[i] & (PGSIZE - 1);
+				present = perm & PTE_P;
+				shared = perm & PTE_SHARE;
+				writable = perm & PTE_W;
+				if(present && shared) {
+		if((r=sys_page_map(0, (void*)( i << PGSHIFT), child , (void*)( i << PGSHIFT), PTE_U|PTE_P|PTE_SHARE|(writable?PTE_W:0))) < 0)
+
+						return r;
+				} 
+				++i;
+		}else{
+			i+=1024;
+		}
+	}
 	return 0;
 }
 

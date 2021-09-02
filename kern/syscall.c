@@ -141,6 +141,8 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	int r;
 	if((r = envid2env(envid, &e, 1)) < 0)
 		return r;
+	(*tf).tf_eflags |= FL_IF | FL_IOPL_0;
+	(*tf).tf_eflags &= ~FL_IOPL_3;
 	e->env_tf = *tf;
 	return 0;
 	panic("sys_env_set_trapframe not implemented");

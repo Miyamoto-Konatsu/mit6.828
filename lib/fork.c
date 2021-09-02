@@ -31,6 +31,7 @@ pgfault(struct UTrapframe *utf)
 	uint32_t perm = uvpt[pgnum] & (PGSIZE - 1);
 
 	uint32_t cow = perm & PTE_COW;
+	bool shared = perm & PTE_SHARE;
 	if((err & FEC_WR) == 0 || !cow)
 		panic("The page falut is not copy-on-write fault!\n,perm %d\n",perm);
 	// Allocate a new page, map it at a temporary location (PFTEMP),
@@ -73,22 +74,24 @@ duppage(envid_t envid, unsigned pn)
 	bool writable = false, present = false, cow = false ,shared = false;
 
 	int perm = uvpt[pn] & (PGSIZE - 1);
-	writable = perm & ~PTE_W;
-	present = perm & ~PTE_P;
-	cow = perm & ~PTE_COW;
-	shared = perm & ~PTE_SHARE;
+	writable = perm & PTE_W;
+	present = perm & PTE_P;
+	cow = perm & PTE_COW;
+	shared = perm & PTE_SHARE;
 	if(!present)
 		return 0;
+		
+	if(shared) {
+		if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), PTE_U|PTE_P|PTE_SHARE|(writable?PTE_W:0))) < 0)
+			return r;
+		return 0;
+	} 
 	if(!writable && !cow) {
 		if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), PTE_U|PTE_P)) < 0)
 			return r;
 		return 0;
 	}
-	/* if(shared) {
-		if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), PTE_U|PTE_P|PTE_SHARE)) < 0)
-			return r;
-		return 0;
-	} */
+	
 	perm = PTE_P |PTE_U|PTE_COW;
 	
 	if((r=sys_page_map(0, (void*)( pn << PGSHIFT), envid , (void*)( pn << PGSHIFT), perm)) < 0)
@@ -147,7 +150,7 @@ fork(void)
 	}
 	extern unsigned char end[];
 	int r;
-	for(unsigned i = 0; i < PGNUM(ROUNDUP((uintptr_t)end, PGSIZE));){
+	for(unsigned i = 0; i < PGNUM(ROUNDUP(0xeebfd000, PGSIZE));){
 		if(uvpd[ i >> 10] & PTE_P ) {
 			if((r=duppage(envid, i++)) < 0)
 				panic("error %e\n",r);
