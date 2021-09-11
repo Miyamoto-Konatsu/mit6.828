@@ -22,13 +22,7 @@ sys_cputs(const char *s, size_t len)
 	// Destroy the environment if not.
 
 	// LAB 3: Your code here.
-	uint32_t start = ROUNDDOWN((uint32_t)s, PGSIZE);
-	size_t size = 0;
-	for(; size < len; size += PGSIZE) {
-		if((*(pgdir_walk(curenv->env_pgdir,(void*)start + size,0)) & PTE_U) == 0) {
-			env_destroy(curenv);
-		}
-	}
+	user_mem_check(curenv,(void *)s, len,PTE_U);
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
 }
@@ -416,7 +410,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 
 	switch (syscallno) {
 		case(SYS_cputs):
-			user_mem_assert(curenv,(void*)a1,a2,PTE_U);
+			user_mem_assert(curenv,(void*)a1, a2,PTE_U);
 			sys_cputs((void*) a1, a2);
 			return 0;
 		case(SYS_cgetc):
