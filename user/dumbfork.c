@@ -28,11 +28,15 @@ duppage(envid_t dstenv, void *addr)
 	int r;
 
 	// This is NOT what you should do in your fork.
+	// child首先分配一物理页，把addr映射到这个物理页
 	if ((r = sys_page_alloc(dstenv, addr, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_alloc: %e", r);
+	// 获得child分配的物理页，将parent的UTEMP虚拟页映射到那个物理页
 	if ((r = sys_page_map(dstenv, addr, 0, UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_map: %e", r);
+	// parent把addr开始的一页数据复制到UTEMP。物理内存角度上就是把数据复制到child的那个物理页去了
 	memmove(UTEMP, addr, PGSIZE);
+	// parent取消UTEMP映射
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
 		panic("sys_page_unmap: %e", r);
 }
@@ -61,7 +65,6 @@ dumbfork(void)
 		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
-
 	// We're the parent.
 	// Eagerly copy our entire address space into the child.
 	// This is NOT what you should do in your fork implementation.

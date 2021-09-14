@@ -197,6 +197,8 @@ cga_putc(int c)
 	}
 
 	// What is the purpose of this?
+
+	//在屏幕被占满之后，整个屏幕向上移动一行，即屏幕的第一行消失，最后面一行空白
 	if (crt_pos >= CRT_SIZE) {
 		int i;
 

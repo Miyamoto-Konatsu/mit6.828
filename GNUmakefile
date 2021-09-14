@@ -149,7 +149,7 @@ include fs/Makefrag
 include net/Makefrag
 
 
-CPUS ?= 1
+CPUS ?= 1 
 
 PORT7	:= $(shell expr $(GDBPORT) + 1)
 PORT80	:= $(shell expr $(GDBPORT) + 2)

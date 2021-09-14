@@ -11,6 +11,8 @@ time_init(void)
 
 // This should be called once per timer interrupt.  A timer interrupt
 // fires every 10 ms.
+// 每10毫秒产生一次timer interrupt,每次timer interrupt之后调用time_tick()
+// 每次调用ticks++,所以ticks * 10为当前时间
 void
 time_tick(void)
 {
