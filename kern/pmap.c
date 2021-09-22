@@ -247,6 +247,7 @@ mem_init(void)
 
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
+
 }
 
 // Modify mappings in kern_pgdir to support SMP
@@ -352,7 +353,6 @@ page_alloc(int alloc_flags)
 	// Returns NULL if out of free memory.
 	if(page_free_list == NULL)  
 		return NULL;
-	
 
 	struct PageInfo * res = page_free_list;
 	page_free_list = page_free_list->pp_link;
@@ -363,7 +363,7 @@ page_alloc(int alloc_flags)
 	// If (alloc_flags & ALLOC_ZERO), fills the entire
 	// returned physical page with '\0' bytes.
 	if(alloc_flags & ALLOC_ZERO) {
-		memset(page2kva(res),0,PGSIZE);
+		memset(page2kva(res), 0, PGSIZE);
 	}
 	return res;
 
@@ -395,7 +395,7 @@ page_free(struct PageInfo *pp)
 void
 page_decref(struct PageInfo* pp)
 {
-	if (--pp->pp_ref == 0)
+	if (--pp->pp_ref <= 0)
 		page_free(pp);
 }
 

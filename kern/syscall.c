@@ -12,7 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
-
+#include <kern/e1000.h>
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
@@ -360,7 +360,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			return -E_INVAL;
 		if(perm & PTE_W && (*src_pte & PTE_W) == 0)
 			return -E_INVAL;
-		if(des_e->env_ipc_dstva <(void*)UTOP)
+		if(des_e->env_ipc_dstva < (void*)UTOP)
 			if(page_insert(des_e->env_pgdir, pa2page(*src_pte), des_e->env_ipc_dstva, perm))
 				return -E_NO_MEM;
 	}
@@ -405,6 +405,25 @@ sys_time_msec(void)
 	// LAB 6: Your code here.
 	return time_msec();
 	panic("sys_time_msec not implemented");
+}
+
+static int 
+sys_send_packet(void * srcva, uint32_t len) 
+{
+	//if(user_mem_check(curenv, srcva, len, PTE_U) < 0)
+	//	return -E_INVAL;
+	if(len > PGSIZE)
+		return -E_INVAL;
+	if(e1000_send_packet(srcva, len))
+		return -E_NO_PACKET_MEM;
+	return 0;
+	
+}
+
+static int
+sys_recv_packet(void *buf) 
+{
+	return e1000_recv_packet(buf);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -452,6 +471,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2);
 		case(SYS_time_msec):
 			return sys_time_msec();
+		case(SYS_send_packet):
+			return sys_send_packet((void *)a1, (uint32_t) a2);
+		case(SYS_recv_packet):
+			return sys_recv_packet((void *)a1);
 		default:
 			return -E_INVAL;
 	}

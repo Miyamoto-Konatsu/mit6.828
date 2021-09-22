@@ -3,7 +3,7 @@
 #include <inc/stdio.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
+#include<kern/e1000.h>
 #include <kern/monitor.h>
 #include <kern/console.h>
 #include <kern/pmap.h>
@@ -31,7 +31,6 @@ i386_init(void)
 
 	// Lab 2 memory management initialization functions
 	mem_init();
-
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
@@ -46,14 +45,13 @@ i386_init(void)
 	// Lab 6 hardware initialization functions
 	time_init();
 	pci_init();
-
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
 	lock_kernel();
 
 	// Starting non-boot CPUs
 	boot_aps();
-
+	
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
 
@@ -67,8 +65,9 @@ i386_init(void)
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	ENV_CREATE(user_spin, ENV_TYPE_USER);
 #endif // TEST*
+
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
 	kbd_intr();
