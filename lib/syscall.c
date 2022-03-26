@@ -117,3 +117,20 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+unsigned int
+sys_time_msec(void)
+{
+	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
+}
+
+int
+sys_send_packet(void * buf, uint32_t len)
+{
+	return syscall(SYS_send_packet, 0, (uint32_t) buf, len, 0 ,0, 0);
+}
+
+int
+sys_recv_packet(void *buf) 
+{
+	return syscall(SYS_recv_packet, 0, (uint32_t) buf, 0, 0, 0, 0);
+}

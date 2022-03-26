@@ -13,6 +13,7 @@
 #include <kern/picirq.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+#include <kern/time.h>
 
 static struct Taskstate ts;
 
@@ -263,11 +264,22 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-    if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+	 
+
+	// Add time tick increment to clock interrupts.
+	// Be careful! In multiprocessors, clock interrupts are
+	// triggered on every CPU.硬件产生时钟中断时，所有cpu都会触发
+	// time interrupt，但只需tick一次。
+	// LAB 6: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		if(cpunum() == 0)
+			time_tick();
 		lapic_eoi();
 		sched_yield();
 		return;
 	}
+
+   
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
@@ -363,7 +375,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 3: Your code here.
 	if((tf->tf_cs & 3) == 0){
-			panic("kernel occurs page falut! va %08x ip %08x\n",rcr2(),tf->tf_eip);
+			panic("kernel occurs page falut! va %08x ip %08x error %d\n",rcr2(),tf->tf_eip,tf->tf_err);
 	}
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
